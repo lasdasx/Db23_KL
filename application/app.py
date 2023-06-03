@@ -769,7 +769,38 @@ def operator_dashboard(arguement):
         return redirect(url)
     if request.method == "POST" and "reviews" in request.form:
         return redirect('/reviews')
+    if request.method == "POST" and "reservations" in request.form:
+        return redirect('/reservations/{}'.format(arguement))
     return render_template("operator_dashboard.html",arguement=arguement)
+
+@app.route('/reservations/<operator>', methods=["GET", "POST"])
+def reservations(operator):
+    cur=mysql.connection.cursor()
+    cur.execute("select school_id from users where username=%s",(operator,))
+    sid=cur.fetchone()[0]
+    cur.execute("select username,first_name,last_name,reservation_date,title,no_copies,user_type,isbn from reservations join schools_books on schools_books.book_id=reservations.book_id join users on (users.school_id=schools_books.school_id and username=reservations.user_id) join books on isbn=reservations.book_id  where users.school_id=%s ",(sid,))
+    result=cur.fetchall()
+    try:    
+        if "approve" in request.form:
+            number=request.form.get("approve")
+            res=result[int(number)]
+            cur.execute("insert into borrowings (user_id,book_id) values (%s,%s)",(res[0],res[7]))
+            cur.execute("delete from reservations where user_id=%s and book_id=%s",(res[0],res[7]))
+            mysql.connection.commit()
+            return redirect('/reservations/{}'.format(operator))
+        
+        if "reject" in request.form:
+            number=request.form.get("reject")
+            res=result[int(number)]
+            cur.execute("delete from reservations where user_id=%s and book_id=%s",(res[0],res[7]))
+            mysql.connection.commit()
+            return redirect('/reservations/{}'.format(operator))
+
+    except MySQLdb.OperationalError as e:
+    
+            error_message = str(e)
+            return error_message
+    return render_template("reservations.html",result=result,operator=operator)
 
 
 @app.route('/books', methods=["GET", "POST"])
