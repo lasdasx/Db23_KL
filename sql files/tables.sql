@@ -1,9 +1,7 @@
 
 CREATE DATABASE if not exists LibraryManagement CHARACTER SET utf8 COLLATE utf8_general_ci;
 
-/* =====================
-	CREATE ENTITIES 
-======================*/
+
 USE LibraryManagement;
 
 
@@ -223,14 +221,14 @@ END$
 DELIMITER ;
 
 
-DELIMITER $ --handling pending return
+DELIMITER $ --handling pending return before insert on reservations
 
 CREATE TRIGGER check_delayed_return BEFORE INSERT ON reservations
 FOR EACH ROW
 BEGIN
   DECLARE flag_value BOOLEAN;
   
-  -- Check if any existing row for the same user_id has flag_column false and date_column more than 5 days in the past
+  -- Check if any existing row for the same user_id has flag_column false and date_column more than 7 days in the past
   SELECT EXISTS(
     SELECT 1
     FROM borrowings
@@ -249,6 +247,31 @@ END$
 
 DELIMITER ;
 
+DELIMITER $ --handling pending return before insert on borrowings
+
+CREATE TRIGGER check_delayed_return_2 BEFORE INSERT ON borrowings
+FOR EACH ROW
+BEGIN
+  DECLARE flag_value BOOLEAN;
+  
+  -- Check if any existing row for the same user_id has flag_column false and date_column more than 7 days in the past
+  SELECT EXISTS(
+    SELECT 1
+    FROM borrowings
+    WHERE user_id = NEW.user_id
+      AND returned = FALSE
+      AND borrow_date <= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
+  ) INTO flag_value;
+  
+  -- If there is a matching row, raise an error
+  IF flag_value = TRUE THEN
+    SIGNAL SQLSTATE '45000'
+      SET MESSAGE_TEXT = 'Cannot insert. Return pending.';
+  END IF;
+  
+END$
+
+DELIMITER ;
 
 DELIMITER $ --handling reservation for a book that is at the same time lended to the user
 

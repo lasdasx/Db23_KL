@@ -184,7 +184,7 @@ for i in range(DUMMY_DATA_NUMBER):
 
 TABLE_NAME = "reservations"
 TABLE_COLUMNS = ["user_id","book_id","reservation_date"]
-DUMMY_DATA_NUMBER = 40
+DUMMY_DATA_NUMBER = 70
 for i in range(DUMMY_DATA_NUMBER):
     reservation=fake.date_time_between(start_date='-7d')
     sc = random.choice(school_ids)
