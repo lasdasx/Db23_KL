@@ -1,7 +1,7 @@
 import random
-from collections import OrderedDict
+
 import faker
-from datetime import datetime
+
 
 fake = faker.Faker()
 
