@@ -22,7 +22,7 @@
 </head>
 <body>
 <div>
-    <form action="{{url_for('books',arguement=arguement)}}" method = "POST">
+    <form action="/books/{{arguement}}" method = "POST">
         <a href="books.html"> <button type="submit" name="books" class = "buttons">books</button></a>
     </form>
 
@@ -35,6 +35,14 @@
 
     <form action="/operator/{{arguement}}" method = "POST">
         <a href="reservations.html"> <button type="submit" name="reservations" class = "buttons">reservations</button></a>
+    </form>
+
+    <form action="{{url_for('borrowings2',arguement=arguement)}}" method = "POST">
+        <a href="borrowings2.html"> <button type="submit" name="borrowings" class = "buttons">borrowings</button></a>
+    </form>    
+
+    <form action="/operator/{{arguement}}" method = "POST">
+        <a href="add_book.html"> <button type="submit" name="add_book" class = "buttons">add book</button></a>
     </form>
 
 </div>

@@ -16,16 +16,27 @@
 </head>
 <body>
     <h1>Books</h1>
-    <form action="{{ url_for('books',arguement=arguement) }}" method="POST">
+    <form action="/books/{{operator}}" method="POST">
         <label for="writer">Writer:</label>
-        <input type="text" id="writer" name="writer">
+        <select name="writer">
+            <option value="" disabled selected>Writer</option>
+            {% for i in writers%}
+            <option value="{{i[2]}}">{{i[0]+" " +i[1]}}</option>
+            {%endfor%}
+        </select>
         <label for="category">Category:</label>
-        <input type="text" id="category" name="category">
+        <select name="category">
+            <option value="" disabled selected>Category</option>
+            {% for i in categories%}
+            <option value="{{i[1]}}">{{i[0]}}</option>
+            {%endfor%}
+
+        </select>
         <label for="title">Title:</label>
         <input type="text" id="title" name="title">
-        <label for="no_copies">Number of Copies:</label>
-        <input type="text" id="no_copies" name="no_copies">
-        <input type="submit" value="Search">
+        <label for="no_copies">Minimum number of Copies:</label>
+        <input type="number" id="no_copies" name="no_copies" >
+        <input type="submit" name="search" value="Search">
     </form>
     <table>
         <tr>
@@ -37,15 +48,15 @@
         </tr>
         {% for book in books_data %}
             <tr>
-                <td>{{ book['title'] }}</td>
-                <td>{{ book['isbn'] }}</td>
-                <td>{{ book['no_copies'] }}</td>
-                <td>{{ book['writers']|join(', ') }}</td>
-                <td>{{ book['category']|join(', ') }}</td>
+                <td>{{ book[1] }}</td>
+                <td>{{ book[0] }}</td>
+                <td>{{ book[4] }}</td>
+                <td>{{ book[2] }}</td>
+                <td>{{ book[3] }}</td>
                 <td>
-                    <form action="{{ url_for('edit_book',isbn=isbn) }}" method="POST">
-                        <input type="hidden" name="isbn" value="{{ book['isbn'] }}">
-                        <input type="submit" name = "Edit" value="Edit">
+                    <form action="/books/{{operator}}" method="POST">
+                        
+                        <button type="submit" name="edit" value="{{book[0]}}">edit</button>
                     </form>
                 </td>
             </tr>

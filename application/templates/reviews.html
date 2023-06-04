@@ -12,10 +12,12 @@
             align-items: center;
             height: 100vh;
             font-family: Arial, sans-serif;
+            
         }
        .search-bars-container{
            display: flex;
            align-items: center;
+           margin: 10vw;
            flex-direction: column;
            margin-bottom: 20px;
        }
@@ -29,9 +31,14 @@
 </head>
 <body>
 <div class="search-bars-container">
-    <form action="{{ url_for('reviews') }}" method="POST">
+    <form action="/reviews" method="POST">
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username">
+        <select name="username" >
+            <option value="" disabled selected>username</option>
+            {%for i in users%}
+            <option value="{{i[0]}}">{{i[0]}}</option>
+            {%endfor%}
+        </select>
         <input type="submit" value="Submit">
     </form>
     <div class="average-container">
@@ -39,9 +46,14 @@
     </div>
 </div>
 <div class="search-bars-container">
-    <form action="{{ url_for('reviews') }}" method="POST">
+    <form action="/reviews" method="POST">
         <label for="category">Category:</label>
-        <input type="text" id="category" name="category">
+        <select name="category" >
+            <option value="" disabled selected>category</option>
+            {%for i in categories%}
+            <option value="{{i[0]}}">{{i[0]}}</option>
+            {%endfor%}
+        </select>
         <input type="submit" value="Submit">
     </form>
     <div class="average-container">

@@ -8,7 +8,8 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            
+            
         }
         table {
       border-collapse: collapse;
@@ -89,6 +90,7 @@
                     {%if i[4]==1%} approved {%else%} waiting approval{%endif%}
                 </td>
                 <td><button type="submit" name="isbn" value="{{i[0]}}">Apply changes</button></td>
+                <td><button type="submit" name="delete" value="{{i[0]}}">Delete</button></td>
             </form>
                 </tr>
               

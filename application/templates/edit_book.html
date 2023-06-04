@@ -1,10 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Edit_book</title>
+    <title>edit book page</title>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+        }
+        
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+        }
+        
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        form > div {
+            margin-bottom: 10px;
+        }
+
+        form > div > input {
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <form action="/books/edit_book/{{sid}}/{{isbn}}" method="POST">
+            <div> <h3> Title:</h3><input type="text" name="title" value="{{data[0]}}"></div><br>
+            
+            <div> <h3> Publisher:</h3><input type="text" name="publisher" value="{{data[1]}}"></div><br>
 
+            <div> <h3> Categories:</h3><input type="text" name="categories" value="{{data[7]}}"></div><br>
+
+            <div> <h3> Writers:</h3><input type="text" name="writers" value="{{data[6]}}"></div><br>
+
+            <div> <h3> Summary:</h3><textarea name="summary" rows="10" cols="50" >{{data[2]}}</textarea></div><br>
+
+            <div> <h3> Keywords:</h3><textarea name="keywords" rows="3" cols="50" >{{data[3]}}</textarea></div><br>
+            
+            <div><h3>Number of pages:</h3> <input type="number" name="no_pages" value="{{data[5]}}"> </div>
+            <br>
+            <div><h3>Copies:</h3> <input type="number" name="copies" value="{{data[8]}}"> </div>
+            <br>
+            <div> <img src="{{data[4]}}" alt="Image" style="max-width: 30vw; max-height: 30vh;"> </div>
+            <button type="submit" name="save">Save and exit</button>
+        </form>
+    </div>
 </body>
 </html>

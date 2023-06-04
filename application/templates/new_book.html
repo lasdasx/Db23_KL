@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>new book page</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form action="/add_book/{{operator}}/new_book/{{isbn}}" method="POST" enctype="multipart/form-data">
+            
+            <div><h3>{{isbn}}</h3></div><br>
+            <div> Title: <br> <input type="text" name="title" required></div>
+            <div> Summary: <br><textarea name="summary" rows="10" cols="50"></textarea></div><br>
+            <div> Keywords: <br><textarea name="keywords" rows="3" cols="50"></textarea></div><br>
+            <div> Number of pages: <br> <input type="number" name="pages" required></div>
+            <div> Publisher: <br> <input type="text" name="publisher" required></div>
+            <div style="max-width: 40vw;"> Writers full name (if multiple -> comma seperated eg: John Green, Amy White):<br> <input type="text" name="writers" placeholder="eg John Green"></div>
+            <div style="max-width: 40vw;"> Category (if multiple -> comma seperated eg: history, music):<br> <input type="text" name="categories" placeholder="eg music"></div>
+            <div>Book image:<input type="file" name="photo" required><br></div> 
+            <div> Number of copies: <br> <input type="number" name="copies" required></div>
+            <button type="submit" name="submit">Add</button>
+            
+            </form>
+
+
+
+    </div>
+</body>
+</html>

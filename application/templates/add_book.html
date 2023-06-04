@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>add book page</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form action="/add_book/{{operator}}" method="POST">
+            
+            <div> what is the isbn? <br><input type="text" name="isbn"></div><br>
+            
+            
+            <button type="submit" name="Next">Next</button>
+            </form>
+
+
+
+    </div>
+</body>
+</html>

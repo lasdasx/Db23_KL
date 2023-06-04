@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>already existing book page</title>
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form action="/add_book/{{operator}}/already_exists/{{isbn}}" method="POST">
+            <div><h3>{{title}}</h3></div><br>
+            <div>Number of copies: <br><input type="number" name="copies" ></div><br>
+            
+            <button type="submit" name="add">Add</button>
+            </form>
+
+
+
+    </div>
+</body>
+</html>

@@ -4,6 +4,7 @@ from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
 from datetime import date as datetime_date
 import subprocess
+import os
 
 app = Flask(__name__)
 app.secret_key = 'any random string'
@@ -121,6 +122,8 @@ def user_info(username):
     cur.execute("select first_name,last_name,password,birthday,user_type from users where username=%s",(username,))
     result=cur.fetchone()
 
+    
+
     if "save" in request.form:
         if result[4]=="student":
             password=request.form.get("password")
@@ -135,8 +138,16 @@ def user_info(username):
             cur.execute("update users set password=%s, first_name=%s, last_name=%s,birthday=%s where username=%s",(password,first_name,last_name,birthday,username))
             mysql.connection.commit()
             return redirect("/user/{}".format(username))
+    
+
     cur.execute("select isbn,title,likert,review_text,published from reviews join books on book_id=isbn join users on username=user_id where username=%s",(username,))
     reviews=cur.fetchall()
+    if "delete" in request.form:
+        isbn=request.form.get("delete")
+        cur.execute("delete from reviews where user_id=%s and book_id=%s",(username,isbn))
+        mysql.connection.commit()
+        return redirect("/user/{}/info".format(username))
+
     if "isbn" in request.form:
         isbn=request.form.get("isbn")
         likert=request.form.get("likert")
@@ -465,7 +476,7 @@ def restore():
             file.save('restore.sql')
 
             # Define the command to restore the database
-            cmd = 'D:/mariadb/download/bin/mysql -u root librarymanagement < restore.sql'
+            cmd = 'mysql -u root librarymanagement < restore.sql'
 
             # Execute the command as a subprocess
             subprocess.run(cmd, shell=True, check=True)
@@ -762,8 +773,8 @@ def operator_dashboard(arguement):
         session.pop(arguement, None)
         return redirect('/')
     if request.method == "POST" and "books" in request.form:
-        url = url_for('books',arguement=arguement)
-        return redirect(url)
+        
+        return redirect('/books/{}'.format(arguement))
     if request.method == "POST" and "users" in request.form:
         url = url_for('users_handler',arguement=arguement)
         return redirect(url)
@@ -771,7 +782,121 @@ def operator_dashboard(arguement):
         return redirect('/reviews')
     if request.method == "POST" and "reservations" in request.form:
         return redirect('/reservations/{}'.format(arguement))
+    if request.method == "POST" and "add_book" in request.form:
+        return redirect('/add_book/{}'.format(arguement))
     return render_template("operator_dashboard.html",arguement=arguement)
+
+
+@app.route('/add_book/<operator>/already_exists/<isbn>', methods=["GET", "POST"])
+def already(operator,isbn):
+    cur=mysql.connection.cursor()
+    cur.execute("select title from books where isbn=%s",(isbn,))
+    title=cur.fetchone()[0]
+    if request.method=="POST":
+        copies=request.form.get("copies")
+        
+        cur.execute("select school_id from users where username=%s",(operator,))
+        sid=cur.fetchone()[0]
+        
+        
+        cur.execute("insert into schools_books (school_id,book_id,no_copies) values  (%s,%s,%s)",(sid,isbn,copies))
+        mysql.connection.commit()
+        return redirect("/operator/{}".format(operator))
+
+    return render_template("already.html",operator=operator,title=title,isbn=isbn)
+
+
+
+@app.route('/add_book/<operator>/new_book/<isbn>', methods=["GET", "POST"])
+def new_book(operator,isbn):
+    cur=mysql.connection.cursor()
+    if request.method=="POST":
+        summary=request.form.get("summary")
+        title=request.form.get("title")
+        keywords=request.form.get("keywords")
+        pages=request.form.get("pages")
+        publisher=request.form.get("publisher")
+        file = request.files['photo']  # Assuming the file input field has the name 'photo'
+    
+        filename = file.filename
+        folder_path = os.path.dirname(os.path.abspath(__file__))
+        os.chmod(os.path.join(folder_path,"photos"), 0o777)
+        file.save(os.path.join(folder_path,"photos",filename))
+        file_url = url_for('get_photo', filename=filename)
+        
+ 
+        copies=request.form.get("copies")
+
+        cur.execute("insert into books (title,isbn,summary,keywords,publisher,image_url,no_pages) values (%s,%s,%s,%s,%s,%s,%s)",(title,isbn,summary,keywords,publisher,file_url,int(pages)))
+        mysql.connection.commit()
+        cur.execute("select school_id from users where username=%s",(operator,))
+        sid=cur.fetchone()[0]
+        cur.execute("insert into schools_books (school_id,book_id,no_copies) values (%s,%s,%s)",(int(sid),isbn,int(copies)))
+
+        writers_str=request.form.get("writers")
+        categories_str=request.form.get("categories")
+        categories=categories_str.split(",")
+        
+        for i in categories:
+            i=i.strip()
+            cur.execute("select exists(select * from categories where category_name=%s)",(i,))
+            res=cur.fetchone()[0]
+            if not int(res):
+                cur.execute("insert into categories (category_name) values (%s)",(i,))
+                mysql.connection.commit()
+            cur.execute("select id from categories where category_name=%s",(i,))
+            id=cur.fetchone()[0]
+            cur.execute("insert into category_book (category_id,book_id) values (%s,%s)",(int(id),isbn))
+
+        writers = writers_str.split(",")
+
+
+        # Iterate over each name
+        for name in writers:
+            # Split each name by space to get first and last names
+            parts = name.strip().split(" ")
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
+            
+            # Append the first and last names to their respective lists
+            
+            cur.execute("select exists(select * from writers where first_name=%s and last_name=%s)",(first_name,last_name))
+            res=cur.fetchone()[0]
+            if not int(res):
+                cur.execute("insert into writers (first_name,last_name) values (%s,%s)",(first_name,last_name))
+                mysql.connection.commit()
+
+            cur.execute("select id from writers where first_name=%s and last_name=%s",(first_name,last_name))
+            id=cur.fetchone()[0]
+            cur.execute("insert into book_writer (book_id,writer_id) values (%s,%s)",(isbn,int(id)))
+            mysql.connection.commit()
+
+        return redirect("/operator/{}".format(operator))
+        
+        
+    return render_template("new_book.html",operator=operator,isbn=isbn)
+
+
+@app.route('/add_book/<operator>', methods=["GET", "POST"])
+def add_book(operator):
+    if request.method=="POST":
+        isbn=request.form.get("isbn")
+        cur=mysql.connection.cursor()
+        cur.execute("SELECT EXISTS(SELECT isbn FROM books WHERE isbn = %s)",(isbn,))
+        res=cur.fetchone()[0]
+        if int(res):
+            cur.execute("select school_id from users where username=%s",(operator,))
+            sid=cur.fetchone()[0]
+            cur.execute("SELECT EXISTS(SELECT * FROM schools_books WHERE school_id=%s and book_id = %s)",(sid,isbn))
+            res=cur.fetchone()[0]
+            if int(res):
+                return "book is already registered for this school"
+            else:
+                return redirect("/add_book/{}/already_exists/{}".format(operator,isbn))
+        else:
+            return redirect("/add_book/{}/new_book/{}".format(operator,isbn))
+
+    return render_template("add_book.html",operator=operator)
 
 @app.route('/reservations/<operator>', methods=["GET", "POST"])
 def reservations(operator):
@@ -803,122 +928,148 @@ def reservations(operator):
     return render_template("reservations.html",result=result,operator=operator)
 
 
-@app.route('/books', methods=["GET", "POST"])
-def books():
-    arguement = request.args.get('arguement')
-    books_data = []
-    if request.method == "POST":
-        cur = mysql.connection.cursor()
-        writer_s = request.form.get("writer")
-        category_s = request.form.get("category")
-        title_s = request.form.get("title")
-        no_copies_s = request.form.get("no_copies")
-        Edit = request.form.get("Edit")
-        cur.execute('select title,isbn,no_copies from books join schools_books on schools_books.book_id = books.isbn join schools on schools.school_id = schools_books.school_id join users on schools.school_id = users.school_id where username = %s',(arguement,))
-        books2 = cur.fetchall()
-        for book in books2:
-            cur.execute('select first_name,last_name from book_writer join books on book_writer.book_id = books.isbn join writers on book_writer.writer_id = writers.id where books.isbn = %s',(book[1],))
-            a = cur.fetchall()
-            names = [i[0]+" "+i[1] for i in a]
-            cur.execute('select category_name from categories join category_book on categories.id = category_book.category_id join books on category_book.book_id=books.isbn where books.isbn = %s',(book[1],))
-            b = cur.fetchall()
-            category = [j[0] for j in b]
-            books_data.append({
-                'title': book[0],
-                'isbn': book[1],
-                'no_copies': book[2],
-                'writers': names,
-                'category': category
-            })
+@app.route('/books/<operator>', methods=["GET", "POST"])
+def books(operator):
+    
+        
+    #arguement = request.args.get('arguement')
+    
+    cur=mysql.connection.cursor()
+        
+    cur.execute("select first_name,last_name,id from writers")
+    writers=cur.fetchall()
+    cur.execute("select category_name,id from categories")
+    categories=cur.fetchall()
+    cur.execute("select school_id from users where username=%s",(operator,))
+    sid=cur.fetchone()[0]
 
-        if title_s:
-            books_data = []
-            cur.execute('select title,isbn,no_copies from books join schools_books on schools_books.book_id = books.isbn join schools on schools.school_id = schools_books.school_id join users on schools.school_id = users.school_id where username = %s and title LIKE %s',(arguement,title_s,))
-            books3 = cur.fetchall()
-            for book in books3:
-                cur.execute('select first_name,last_name from book_writer join books on book_writer.book_id = books.isbn join writers on book_writer.writer_id = writers.id where books.isbn = %s',(book[1],))
-                a = cur.fetchall()
-                names = [i[0] + " " + i[1] for i in a]
-                cur.execute('select category_name from categories join category_book on categories.id = category_book.category_id join books on category_book.book_id=books.isbn where books.isbn = %s', (book[1],))
-                b = cur.fetchall()
-                category = [j[0] for j in b]
-                books_data.append({
-                    'title': book[0],
-                    'isbn': book[1],
-                    'no_copies': book[2],
-                    'writers': names,
-                    'category': category
-                })
+    if "edit" in request.form:
+        isbn=request.form.get("edit")
+        return redirect("/books/edit_book/{}/{}".format(sid,isbn))
 
-        if no_copies_s:
-            books_data = []
-            cur.execute('select title,isbn,no_copies from books join schools_books on schools_books.book_id = books.isbn join schools on schools.school_id = schools_books.school_id join users on schools.school_id = users.school_id where username = %s and no_copies = %s',(arguement,no_copies_s,))
-            books3 = cur.fetchall()
-            for book in books3:
-                cur.execute('select first_name,last_name from book_writer join books on book_writer.book_id = books.isbn join writers on book_writer.writer_id = writers.id where books.isbn = %s',(book[1],))
-                a = cur.fetchall()
-                names = [i[0] + " " + i[1] for i in a]
-                cur.execute('select category_name from categories join category_book on categories.id = category_book.category_id join books on category_book.book_id=books.isbn where books.isbn = %s', (book[1],))
-                b = cur.fetchall()
-                category = [j[0] for j in b]
-                books_data.append({
-                    'title': book[0],
-                    'isbn': book[1],
-                    'no_copies': book[2],
-                    'writers': names,
-                    'category': category
-                })
+    if "search" in request.form:
+        writer = request.form.get("writer")
+        category = request.form.get("category")
+        title = request.form.get("title")
+        copies = request.form.get("no_copies")
 
-        if category_s:
-            books_data = []
-            cur.execute('select title,isbn,no_copies from books join schools_books on schools_books.book_id = books.isbn join schools on schools.school_id = schools_books.school_id join users on schools.school_id = users.school_id join category_book on category_book.book_id = books.isbn join categories on category_book.category_id = categories.id where username = %s and category_name = %s',(arguement, category_s,))
-            books3 = cur.fetchall()
-            for book in books3:
-                cur.execute('select first_name,last_name from book_writer join books on book_writer.book_id = books.isbn join writers on book_writer.writer_id = writers.id where books.isbn = %s',(book[1],))
-                a = cur.fetchall()
-                names = [i[0] + " " + i[1] for i in a]
-                cur.execute('select category_name from categories join category_book on categories.id = category_book.category_id join books on category_book.book_id=books.isbn where books.isbn = %s',(book[1],))
-                b = cur.fetchall()
-                category = [j[0] for j in b]
-                books_data.append({
-                    'title': book[0],
-                    'isbn': book[1],
-                    'no_copies': book[2],
-                    'writers': names,
-                    'category': category
-                })
+        query = """
+        SELECT isbn, title, GROUP_CONCAT(DISTINCT CONCAT(writers.first_name, ' ', writers.last_name)),
+        GROUP_CONCAT(DISTINCT category_name), no_copies
+        FROM books
+        JOIN category_book ON category_book.book_id = books.isbn
+        JOIN categories ON categories.id = category_book.category_id
+        JOIN book_writer ON book_writer.book_id = books.isbn
+        JOIN writers ON writers.id = book_writer.writer_id
+        JOIN schools_books ON schools_books.book_id = books.isbn
+        JOIN users ON users.school_id = schools_books.school_id
+        WHERE username = %s
+        """
+
+        params = [operator]
+
+        if writer:
+            query += " AND writers.id = %s"
+            params.append(int(writer))
+        if category:
+            query += " AND categories.id = %s"
+            params.append(int(category))
+        if title:
+            query += " AND title LIKE %s"
+            params.append('%' + title + '%')
+        if copies:
+            query += " AND no_copies >= %s"
+            params.append(int(copies))
+
+        query += " GROUP BY isbn, title, no_copies"
+
+        cur.execute(query, params)
+        books_data = cur.fetchall()
+        return render_template("books.html",books_data=books_data,operator=operator,writers=writers,categories=categories)
+
+     
+    
+    cur.execute("select isbn,title,group_concat(distinct concat(writers.first_name, ' ',writers.last_name)),group_concat(distinct category_name),no_copies from books join category_book on category_book.book_id=isbn join categories on categories.id=category_id join book_writer on book_writer.book_id=isbn join writers on writers.id=writer_id join schools_books on schools_books.book_id=isbn join users on users.school_id=schools_books.school_id where username=%s group by isbn,title,no_copies",(operator,))
+    books_data=cur.fetchall()
+    
+    
+    return render_template("books.html",operator=operator,books_data=books_data,writers=writers,categories=categories)
+
+@app.route('/books/edit_book/<sid>/<isbn>', methods=["GET", "POST"])
+def edit_book(sid,isbn):
+
+    cur=mysql.connection.cursor()
+    cur.execute("select title,publisher,summary,keywords,image_url,no_pages,group_concat(distinct concat(first_name,' ',last_name)) ,group_concat(distinct category_name),no_copies from books join category_book on category_book.book_id=isbn join categories on category_book.category_id=categories.id join book_writer on book_writer.book_id=isbn join writers on writers.id=writer_id join schools_books on schools_books.book_id=isbn where schools_books.school_id =%s and isbn=%s group by title,publisher,summary,keywords,image_url,no_pages",(sid,isbn))
+    res=cur.fetchone()
+    cur.execute("select username from users where user_type=%s and school_id=%s",("operator",sid))
+    op=cur.fetchone()[0]
+
+    if "save" in request.form:
+        title=request.form.get("title")
+        publisher=request.form.get("publisher")
+        summary=request.form.get("summary")
+        keywords=request.form.get("keywords")
+        no_pages=request.form.get("no_pages")
+        writers_str=request.form.get("writers")
+        categories_str=request.form.get("categories")
+        copies=request.form.get("copies")
 
 
-        if writer_s:
-            books_data = []
-            cur.execute('select title,isbn,no_copies from books join schools_books on schools_books.book_id = books.isbn join schools on schools.school_id = schools_books.school_id join users on schools.school_id = users.school_id join book_writer on book_writer.book_id = books.isbn join writers on writers.id = book_writer.writer_id where username = %s and CONCAT(writers.first_name," ",writers.last_name)= %s',(arguement,writer_s,))
-            books3 = cur.fetchall()
-            for book in books3:
-                cur.execute('select first_name,last_name from book_writer join books on book_writer.book_id = books.isbn join writers on book_writer.writer_id = writers.id where books.isbn = %s',(book[1],))
-                a = cur.fetchall()
-                names = [i[0] + " " + i[1] for i in a]
-                cur.execute('select category_name from categories join category_book on categories.id = category_book.category_id join books on category_book.book_id=books.isbn where books.isbn = %s', (book[1],))
-                b = cur.fetchall()
-                category = [j[0] for j in b]
-                books_data.append({
-                    'title': book[0],
-                    'isbn': book[1],
-                    'no_copies': book[2],
-                    'writers': names,
-                    'category': category
-                })
+        categories=categories_str.split(",")
 
-        if Edit:
-            isbn = request.form.get("isbn")
-            url = url_for('/books/edit_book',isbn=isbn)
-            return redirect(url)
+        for i in categories:
+            i=i.strip()
+            cur.execute("select exists(select * from categories where category_name=%s)",(i,))
+            res=cur.fetchone()[0]
+            if not int(res):
+                cur.execute("insert into categories (category_name) values (%s)",(i,))
+                mysql.connection.commit()
+            cur.execute("select id from categories where category_name=%s",(i,))
+            id=cur.fetchone()[0]
 
-    return render_template("books.html",books_data=books_data,arguement=arguement)
+            cur.execute("select exists(select * from category_book where category_id=%s and book_id=%s)",(int(id),isbn))
+            res=cur.fetchone()[0]
+            if not int(res):
+                cur.execute("insert into category_book (category_id,book_id) values (%s,%s)",(int(id),isbn))
+                mysql.connection.commit()
 
-@app.route('/books/edit_book', methods=["GET", "POST"])
-def edit_book():
-    isbn = request.args.get('isbn')
-    return render_template("edit_book.html",isbn = isbn)
+        writers = writers_str.split(",")
+
+
+        # Iterate over each name
+        for name in writers:
+            # Split each name by space to get first and last names
+            parts = name.strip().split(" ")
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
+            
+            # Append the first and last names to their respective lists
+            
+            cur.execute("select exists(select * from writers where first_name=%s and last_name=%s)",(first_name,last_name))
+            res=cur.fetchone()[0]
+            if not int(res):
+                cur.execute("insert into writers (first_name,last_name) values (%s,%s)",(first_name,last_name))
+                mysql.connection.commit()
+
+            cur.execute("select id from writers where first_name=%s and last_name=%s",(first_name,last_name))
+            id=cur.fetchone()[0]
+
+            cur.execute("select exists(select * from book_writer where writer_id=%s and book_id=%s)",(id,isbn))
+            res=cur.fetchone()[0]
+            if not int(res):
+                cur.execute("insert into book_writer (book_id,writer_id) values (%s,%s)",(isbn,int(id)))
+                mysql.connection.commit()
+
+
+        cur.execute("update books set title=%s,publisher=%s,summary=%s,keywords=%s,no_pages=%s where isbn=%s",(title,publisher,summary,keywords,int(no_pages),isbn))
+        mysql.connection.commit()
+        cur.execute("update schools_books set no_copies=%s where book_id=%s and school_id=%s",(copies,isbn,sid))
+        mysql.connection.commit()
+        
+        
+        return redirect('/books/{}'.format(op))
+
+    return render_template("edit_book.html",sid=sid,isbn=isbn,data=res)
 
 @app.route('/users_handler', methods=["GET", "POST"])
 def users_handler():
@@ -931,7 +1082,7 @@ def users_handler():
     if request.method == "POST":
         cur = mysql.connection.cursor()
         cur2 = mysql.connection.cursor()
-        current_date = datetime.now().date()
+        
         cur2.execute('select school_id from users where users.username = %s',(arguement,))
         res = cur2.fetchall()
         sid = [r[0] for r in res]
@@ -1041,34 +1192,31 @@ def card(username):
 @app.route('/reviews', methods=["GET", "POST"])
 def reviews():
     cur = mysql.connection.cursor()
-    avg = None
+    cur.execute("select category_name from categories")
+    categories=cur.fetchall()
+    cur.execute("select username from users")
+    users=cur.fetchall()
     username = None
     category = None
-    avg2 = None
+    category_avg=0.0
+    user_avg=0.0
+    
     if request.method == "POST":
         username = request.form.get("username")
         category = request.form.get("category")
         requests = request.form.get("requests")
         if username:
-            cur.execute('select likert from reviews join users on reviews.user_id = users.username where reviews.published = TRUE and users.username = %s',(username,))
-            rows = cur.fetchall()
-            likert_values = [row[0] for row in rows]
-            if likert_values:
-                avg = sum(likert_values)/len(likert_values)
-            else:
-                avg = 0
+            cur.execute('select avg(likert) from reviews join users on reviews.user_id = users.username where reviews.published = TRUE and users.username = %s',(username,))
+            user_avg = cur.fetchone()[0]
+            
         if category:
-            cur.execute('select likert from reviews join books on reviews.book_id = books.isbn join category_book on category_book.book_id = books.isbn join categories on categories.id = category_book.category_id where reviews.published = TRUE and category_name = %s',(category,))
-            rows = cur.fetchall()
-            likert_values = [row[0] for row in rows]
-            if likert_values:
-                avg2 = sum(likert_values) / len(likert_values)
-            else:
-                avg2 = 0
+            cur.execute('select avg(likert) from reviews join books on reviews.book_id = books.isbn join category_book on category_book.book_id = books.isbn join categories on categories.id = category_book.category_id where reviews.published = TRUE and category_name = %s',(category,))
+            category_avg = cur.fetchone()[0]
+            
         if requests:
-            return redirect(url_for('/reviews/reviews_requests'))
+            return redirect('/reviews/reviews_requests')
 
-    return render_template("reviews.html",avg=avg,username=username,category=category,avg2=avg2)
+    return render_template("reviews.html",avg=user_avg,username=username,category=category,avg2=category_avg,users=users,categories=categories)
 
 @app.route('/reviews/reviews_requests', methods=["GET","POST"])
 def reviews_requests():
@@ -1091,6 +1239,69 @@ def reviews_requests():
             mysql.connection.commit()
             return redirect(url_for('reviews_requests'))
     return render_template("review_request.html",reviews=reviews)
+
+
+
+@app.route('/borrowings2', methods=["GET", "POST"])
+def borrowings2():
+    arguement = request.args.get('arguement')
+    result = []
+    if request.method == "POST":
+        cur = mysql.connection.cursor()
+        cur.execute('select school_id from users where username = %s',(arguement,))
+        sid = cur.fetchone()
+        cur.execute('select borrowings.id,borrow_date,title,username from borrowings join books on borrowings.book_id=books.isbn join users on users.username = borrowings.user_id where returned = FALSE and school_id = %s',(sid,))
+        result = cur.fetchall()
+        returned = request.form.get('returned')
+        bid = request.form.get('bid')
+        new_borrowing = request.form.get('new_borrowing')
+        if returned:
+            cur.execute('update borrowings set returned = TRUE where book_id = %s',(bid,))
+            mysql.connection.commit()
+            return redirect(url_for('borrowings2',arguement=arguement))
+        if new_borrowing:
+            return redirect(url_for('new_borrowing',arguement=arguement))
+    return render_template("borrowings2.html",arguement=arguement,borrowings_data=result)
+
+@app.route('/new_borrowing', methods=["GET", "POST"])
+def new_borrowing():
+    arguement = request.args.get('arguement')
+    if request.method == "POST":
+        cur = mysql.connection.cursor()
+        cur.execute('select school_id from users where username = %s',(arguement,))
+        sid = cur.fetchone()
+        cur.execute('select username from users where school_id = %s',(sid,))
+        users = cur.fetchall()
+        cur.execute('select title,isbn from books join schools_books on book_id = isbn where school_id = %s and no_copies>=1',(sid,))
+        books = cur.fetchall()
+        user = request.form.get('user')
+        book = request.form.get('book')
+        save = request.form.get('save')
+        if save:
+            cur.execute('select DATEDIFF(current_date,borrow_date) from borrowings join users on username = user_id where username = %s',(user,))
+            b = cur.fetchall()
+            cur.execute('select user_id from reservations where user_id = %s',(user,))
+            nr = cur.fetchall()
+            if len(b) and b[0][0]>=7 or len(b)+len(nr)>=2:
+                return redirect('/exceeded_limits')
+            else:
+                cur.execute('SELECT username FROM users WHERE username = %s', (user,))
+                user_row = cur.fetchone()
+                cur.execute('SELECT isbn FROM books WHERE isbn = %s', (book,))
+                book_row = cur.fetchone()
+                if user_row and book_row:
+                    cur.execute('INSERT INTO borrowings (user_id, book_id) VALUES (%s, %s)', (user_row[0], book_row[0]))
+                    mysql.connection.commit()
+                    return redirect('/success')
+    return render_template("new_borrowing.html",arguement=arguement,books=books,users=users)
+
+@app.route('/exceeded_limits', methods=["GET", "POST"])
+def excedeed_limits():
+    return render_template("limits.html")
+
+@app.route('/success', methods=["GET", "POST"])
+def success():
+    return render_template("success.html")
 
 if __name__ == '__main__':
     app.run()
