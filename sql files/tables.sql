@@ -357,10 +357,3 @@ END$
 DELIMITER ;
 
 
-
-create view late_returns as 
-SELECT borrowings.id, borrowings.borrow_date, books.title, users.username
-from borrowings
-join books on borrowings.book_id=books.isbn
-join users on borrowings.user_id=users.username
-where (borrowings.borrow_date + INTERVAL 7 DAY)<current_date and borrowings.returned=false;
