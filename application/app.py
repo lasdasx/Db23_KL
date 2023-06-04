@@ -1245,23 +1245,27 @@ def reviews_requests():
 @app.route('/borrowings2', methods=["GET", "POST"])
 def borrowings2():
     arguement = request.args.get('arguement')
-    result = []
-    if request.method == "POST":
-        cur = mysql.connection.cursor()
-        cur.execute('select school_id from users where username = %s',(arguement,))
-        sid = cur.fetchone()
-        cur.execute('select borrowings.id,borrow_date,title,username from borrowings join books on borrowings.book_id=books.isbn join users on users.username = borrowings.user_id where returned = FALSE and school_id = %s',(sid,))
-        result = cur.fetchall()
-        returned = request.form.get('returned')
-        bid = request.form.get('bid')
-        new_borrowing = request.form.get('new_borrowing')
-        if returned:
-            cur.execute('update borrowings set returned = TRUE where book_id = %s',(bid,))
-            mysql.connection.commit()
-            return redirect(url_for('borrowings2',arguement=arguement))
-        if new_borrowing:
-            return redirect(url_for('new_borrowing',arguement=arguement))
-    return render_template("borrowings2.html",arguement=arguement,borrowings_data=result)
+    
+    cur=mysql.connection.cursor()
+    cur.execute("select school_id from users where username=%s",(arguement,))
+    sid=cur.fetchone()[0]
+    cur.execute("select username,title,borrow_date,isbn from users join borrowings on username=user_id join books on isbn=book_id where school_id=%s and returned=0",(sid,))
+    data=cur.fetchall()
+    if "returned" in request.form:
+        
+        isbn=request.form.get("bid")
+        username=request.form.get("username")
+        cur.execute("update borrowings set returned=1 where user_id=%s and book_id=%s",(username,isbn))
+        mysql.connection.commit()
+        data=cur.fetchall()
+        cur.execute("select school_id from users where username=%s",(arguement,))
+        sid=cur.fetchone()[0]
+        cur.execute("select username,title,borrow_date,isbn from users join borrowings on username=user_id join books on isbn=book_id where school_id=%s and returned=0",(sid,))
+        data=cur.fetchall()
+        return render_template("borrowings2.html",arguement=arguement,borrowings_data=data)
+
+    
+    return render_template("borrowings2.html",arguement=arguement,borrowings_data=data)
 
 @app.route('/new_borrowing', methods=["GET", "POST"])
 def new_borrowing():

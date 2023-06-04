@@ -25,12 +25,13 @@
         </tr>
         {% for borrowing in borrowings_data %}
             <tr>
-                <td>{{ borrowing[3] }}</td>
-                <td>{{ borrowing[2] }}</td>
+                <td>{{ borrowing[0] }}</td>
                 <td>{{ borrowing[1] }}</td>
+                <td>{{ borrowing[2] }}</td>
                 <td>
                     <form action="{{ url_for('borrowings2', arguement=arguement) }}" method="POST">
-                        <input type="hidden" name="bid" value="{{ borrowing[0] }}">
+                        <input type="hidden" name="bid" value="{{ borrowing[3] }}">
+                        <input type="hidden" name="username" value="{{ borrowing[0] }}">
                         <input type="submit" name="returned" value="Return">
                     </form>
                 </td>
