@@ -1282,7 +1282,7 @@ def new_borrowing():
         book = request.form.get('book')
         save = request.form.get('save')
         if save:
-            cur.execute('select DATEDIFF(current_date,borrow_date) from borrowings join users on username = user_id where username = %s',(user,))
+            cur.execute('select DATEDIFF(current_date,borrow_date) from borrowings join users on username = user_id where username = %s and returned=0',(user,))
             b = cur.fetchall()
             cur.execute('select user_id from reservations where user_id = %s',(user,))
             nr = cur.fetchall()

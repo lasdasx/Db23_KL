@@ -31,6 +31,7 @@ CREATE TABLE if not exists users
 	school_id int ,
 	enabled BOOLEAN DEFAULT true,
 	birthday date not null,
+	index user_type_idx(user_type),
 	unique (first_name,last_name,user_type,school_id) ,
 	FOREIGN KEY (school_id) REFERENCES schools(school_id) on delete cascade,
 	CHECK (user_type="teacher" OR user_type="student" or user_type="operator" or user_type="administrator")
@@ -55,6 +56,7 @@ CREATE TABLE if not exists books
 (
 	isbn varchar(13) NOT NULL PRIMARY KEY,
 	title varchar(40) NOT NULL,
+	index title_idx (title),
 	publisher varchar(40) not null,
 	image_url varchar(255),
 	summary varchar(500),
@@ -77,7 +79,8 @@ CREATE TABLE if not exists  writers
 CREATE TABLE if not exists categories
 (
 	id int AUTO_INCREMENT NOT NULL PRIMARY KEY,
-	category_name varchar(30) NOT NULL
+	category_name varchar(30) NOT NULL,
+	index category_name_idx (category_name)
 );
 
 
@@ -133,7 +136,8 @@ CREATE TABLE if not exists borrowings
 	FOREIGN KEY (book_id) REFERENCES books(isbn) on delete cascade,
 	borrow_date datetime default current_timestamp,
 	id int auto_increment primary key ,
-	returned boolean default False
+	returned boolean default False,
+	index returned_idx (returned)
 );
 
 
@@ -332,6 +336,26 @@ BEGIN
 END$
 
 DELIMITER ;
+
+
+
+
+DELIMITER $ --handling the return of a book
+CREATE TRIGGER book_return
+AFTER UPDATE ON borrowings
+FOR EACH ROW
+
+BEGIN
+	declare s_id int;
+    IF NEW.returned = 1 THEN
+        select school_id into s_id from users where username=new.user_id;
+		update schools_books set no_copies=no_copies+1 where school_id=s_id and book_id=new.book_id;
+
+    END IF;
+
+END$
+DELIMITER ;
+
 
 /* DELIMITER $ --check that an operator must operate the school in which he belongs
 CREATE TRIGGER check_operator BEFORE INSERT ON operators
