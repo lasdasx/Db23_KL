@@ -357,30 +357,7 @@ END$
 DELIMITER ;
 
 
-/* DELIMITER $ --check that an operator must operate the school in which he belongs
-CREATE TRIGGER check_operator BEFORE INSERT ON operators
-FOR EACH ROW
-BEGIN
-  DECLARE flag_value BOOLEAN;
-  
-  
-  SELECT EXISTS(
-    SELECT 1
-    FROM users
-    WHERE new.user_id=username and school_id!=new.school_id
-      
-  ) INTO flag_value;
-  
-  -- If there is a matching row, raise an error
-  IF flag_value = TRUE THEN
-    SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Cannot insert. This teacher belong to another school			.';
-  END IF;
-  
-END$
 
-DELIMITER ;
- */
 create view late_returns as 
 SELECT borrowings.id, borrowings.borrow_date, books.title, users.username
 from borrowings
